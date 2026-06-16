@@ -13,7 +13,7 @@ const Tags = {
 
         let html = `<div class="tag-item${active === '__untagged__' ? ' active' : ''}" data-tag-name="__untagged__">
             <span class="tag-dot" style="background:#94a3b8;"></span>
-            <span class="tag-name">未分类</span>
+            <span class="tag-name">${t('sidebar.untagged')}</span>
         </div>`;
 
         for (const t of this.state.tags) {
@@ -21,10 +21,10 @@ const Tags = {
                 <span class="tag-dot" style="background:${t.color}"></span>
                 <span class="tag-name">${this.esc(t.name)}</span>
                 <span class="tag-actions">
-                    <button class="tag-act-btn edit" data-tag-id="${t.id}" data-tag-name="${this.esc(t.name)}" data-tag-color="${t.color}" title="编辑标签">
+                    <button class="tag-act-btn edit" data-tag-id="${t.id}" data-tag-name="${this.esc(t.name)}" data-tag-color="${t.color}" title="${t('tag.editTitle')}">
                         <svg viewBox="0 0 16 16" width="12" height="12"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10Z" fill="currentColor"/></svg>
                     </button>
-                    <button class="tag-act-btn del" data-tag-id="${t.id}" title="删除标签">
+                    <button class="tag-act-btn del" data-tag-id="${t.id}" title="${t('delete.tagConfirm')}">
                         <svg viewBox="0 0 16 16" width="12" height="12"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z" fill="currentColor"/></svg>
                     </button>
                 </span>
@@ -60,12 +60,12 @@ const Tags = {
         modal.innerHTML = `
             <div class="modal-overlay" id="modalOverlay">
                 <div class="modal">
-                    <h3>新建标签</h3>
-                    <div class="form-group"><label>名称</label><input id="tagName"></div>
-                    <div class="form-group"><label>颜色</label><input type="color" id="tagColor" value="#3b82f6">${colorPresets()}</div>
+                    <h3>${t('tag.newTitle')}</h3>
+                    <div class="form-group"><label>${t('tag.name')}</label><input id="tagName"></div>
+                    <div class="form-group"><label>${t('tag.color')}</label><input type="color" id="tagColor" value="#3b82f6">${colorPresets()}</div>
                     <div class="form-actions">
-                        <button class="btn" id="btnCancelTag">取消</button>
-                        <button class="btn btn-primary" id="btnCreateTag">创建</button>
+                        <button class="btn" id="btnCancelTag">${t('tag.cancel')}</button>
+                        <button class="btn btn-primary" id="btnCreateTag">${t('tag.create')}</button>
                     </div>
                 </div>
             </div>`;
@@ -79,7 +79,7 @@ const Tags = {
 
     async createTag() {
         const name = document.getElementById("tagName").value.trim();
-        if (!name) return App.toast("标签名不能为空", true);
+        if (!name) return App.toast(t('tag.nameRequired'), true);
         const data = { name, color: document.getElementById("tagColor").value };
         try {
             await API.createTag(data);
@@ -93,12 +93,12 @@ const Tags = {
         modal.innerHTML = `
             <div class="modal-overlay" id="modalOverlay">
                 <div class="modal">
-                    <h3>编辑标签</h3>
-                    <div class="form-group"><label>名称</label><input id="tagName" value="${this.esc(name)}"></div>
-                    <div class="form-group"><label>颜色</label><input type="color" id="tagColor" value="${color}">${colorPresets()}</div>
+                    <h3>${t('tag.editTitle')}</h3>
+                    <div class="form-group"><label>${t('tag.name')}</label><input id="tagName" value="${this.esc(name)}"></div>
+                    <div class="form-group"><label>${t('tag.color')}</label><input type="color" id="tagColor" value="${color}">${colorPresets()}</div>
                     <div class="form-actions">
-                        <button class="btn" id="btnCancelTag">取消</button>
-                        <button class="btn btn-primary" id="btnUpdateTag">保存</button>
+                        <button class="btn" id="btnCancelTag">${t('tag.cancel')}</button>
+                        <button class="btn btn-primary" id="btnUpdateTag">${t('tag.save')}</button>
                     </div>
                 </div>
             </div>`;
@@ -121,7 +121,7 @@ const Tags = {
     },
 
     async deleteTag(id) {
-        if (!confirm("删除此标签？")) return;
+        if (!confirm(t('delete.tagConfirm'))) return;
         try {
             await API.deleteTag(id);
             await this.loadTree();
@@ -132,7 +132,6 @@ const Tags = {
     esc(s) { return s ? s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;") : ""; },
 };
 
-// Shared color preset helpers
 const COLOR_PRESETS = [
     "#ef4444", "#f97316", "#f59e0b", "#eab308",
     "#22c55e", "#10b981", "#14b8a6", "#06b6d4",

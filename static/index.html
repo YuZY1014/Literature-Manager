@@ -3,22 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>文献管理系统</title>
+<title data-i18n="app.title">文献管理系统</title>
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<button id="btnTheme" title="切换日间/夜间模式">🌙</button>
+<button id="btnSettings" title="设置">⚙️</button>
 
 <div id="app">
     <!-- ──── LEFT SIDEBAR: Tag Tree ──── -->
     <aside id="sidebar">
         <div class="sidebar-header">
-            <span>标签分类</span>
-            <button id="btnNewTag" title="新建标签">+</button>
+            <span data-i18n="sidebar.title">标签分类</span>
+            <button id="btnNewTag" title="+">+</button>
         </div>
         <div class="tag-tree" id="tagTree"></div>
         <div class="sidebar-footer">
-            <button class="btn btn-sm btn-primary" id="btnZoteroImport" style="width:100%;margin-bottom:8px;">从 Zotero 导入</button>
+            <button class="btn btn-sm btn-primary" id="btnZoteroImport" style="width:100%;margin-bottom:8px;" data-i18n="sidebar.importZotero">从 Zotero 导入</button>
             <div class="author-info">
                 <div>Produced by PotaKin</div>
                 <div>E-mail: 1007992107@qq.com</div>
@@ -33,14 +33,14 @@
     <section id="main">
         <!-- Toolbar -->
         <div id="toolbar">
-            <input type="text" id="searchInput" placeholder="搜索标题、作者、摘要...">
-            <select id="yearFilter"><option value="">全部年份</option></select>
-            <button id="btnAddDoc">+ 添加文献</button>
+            <input type="text" id="searchInput" data-i18n-placeholder="toolbar.searchPlaceholder" placeholder="搜索标题、作者、摘要...">
+            <select id="yearFilter"><option value="" data-i18n="toolbar.allYears">全部年份</option></select>
+            <button id="btnAddDoc" data-i18n="toolbar.addDoc">+ 添加文献</button>
         </div>
 
         <!-- Document cards grid -->
         <div id="docGrid">
-            <div class="empty-state">选择左侧标签或搜索文献</div>
+            <div class="empty-state" data-i18n="empty.docGrid">选择左侧标签或搜索文献</div>
         </div>
 
         <!-- Resizer: grid ↔ preview -->
@@ -48,7 +48,7 @@
 
         <!-- Bottom preview panel -->
         <div id="preview" class="empty">
-            <span>选择一篇文献查看批注和笔记</span>
+            <span data-i18n="empty.preview">选择一篇文献查看批注和笔记</span>
         </div>
     </section>
 </div>
@@ -56,13 +56,13 @@
 <!-- PDF Reader overlay -->
 <div id="pdfOverlay" style="display:none;">
     <div id="pdfToolbar">
-        <button id="btnPdfBack">← 返回列表</button>
+        <button id="btnPdfBack" data-i18n="pdf.back">← 返回列表</button>
         <span class="sep"></span>
-        <button id="btnHighlight">高亮</button>
-        <button id="btnUnderline">下划线</button>
-        <button id="btnRect">方框</button>
-        <button id="btnNote">批注</button>
-        <button id="btnNone" class="active">指针</button>
+        <button id="btnHighlight" data-i18n="pdf.highlight">高亮</button>
+        <button id="btnUnderline" data-i18n="pdf.underline">下划线</button>
+        <button id="btnRect" data-i18n="pdf.rect">方框</button>
+        <button id="btnNote" data-i18n="pdf.note">批注</button>
+        <button id="btnNone" class="active" data-i18n="pdf.pointer">指针</button>
         <span class="sep"></span>
         <input type="color" id="annoColor" value="#ffff00">
         <span class="sep"></span>
@@ -76,24 +76,24 @@
         <button id="btnNextPage">▶</button>
         <span class="sep"></span>
         <input type="file" id="pdfNoteUpload" accept=".txt,.doc,.docx" style="display:none;">
-        <button id="btnUploadNote" title="上传笔记附件">📎 附件</button>
+        <button id="btnUploadNote" data-i18n="pdf.attachment" title="上传笔记附件">📎 附件</button>
     </div>
     <div id="pdfMainArea">
         <div id="pdfContainer"></div>
         <div id="sidePanel">
             <div class="panel-third panel-notes">
                 <div class="panel-title-row">
-                    <h3>笔记</h3>
-                    <button id="btnExportNote" title="导出笔记为 TXT" style="border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:11px;padding:1px 6px;">导出</button>
+                    <h3 data-i18n="pdf.notes">笔记</h3>
+                    <button id="btnExportNote" data-i18n="pdf.export" title="导出笔记为 TXT" style="border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:11px;padding:1px 6px;">导出</button>
                 </div>
-                <textarea id="pdfNotes" placeholder="在此编写笔记..." style="width:100%;flex:1;padding:6px 8px;border:none;resize:none;font-size:12px;font-family:inherit;outline:none;background:var(--surface);color:var(--text);overflow-y:auto;"></textarea>
+                <textarea id="pdfNotes" data-i18n-placeholder="pdf.notesPlaceholder" placeholder="在此编写笔记..." style="width:100%;flex:1;padding:6px 8px;border:none;resize:none;font-size:12px;font-family:inherit;outline:none;background:var(--surface);color:var(--text);overflow-y:auto;"></textarea>
             </div>
             <div class="panel-third panel-annos">
-                <h3>批注列表</h3>
+                <h3 data-i18n="pdf.annoList">批注列表</h3>
                 <div id="annoList"></div>
             </div>
             <div class="panel-third panel-atts">
-                <h3>附件列表</h3>
+                <h3 data-i18n="pdf.attList">附件列表</h3>
                 <div id="attList"><div style="padding:20px;text-align:center;color:#888;font-size:13px;">-</div></div>
             </div>
         </div>
@@ -102,8 +102,14 @@
 
 <div id="modalContainer"></div>
 <div id="toastContainer"></div>
+<div class="settings-popup" id="settingsPopup">
+    <button id="popupTheme">🌙 <span data-i18n="settings.theme">日夜切换</span></button>
+    <div class="sep"></div>
+    <button id="popupLang">CN/EN</button>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+<script src="/static/i18n.js"></script>
 <script src="/static/js/api.js"></script>
 <script src="/static/js/app.js"></script>
 <script src="/static/js/pdfviewer.js"></script>

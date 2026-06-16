@@ -10,7 +10,6 @@ const PdfViewer = {
 
     async init(pdfjsLib) {
         this.pdfjsLib = pdfjsLib;
-        // Bind toolbar
         document.getElementById('btnPdfBack').addEventListener('click', () => this.close());
         document.getElementById('btnHighlight').addEventListener('click', () => this.setTool('highlight'));
         document.getElementById('btnUnderline').addEventListener('click', () => this.setTool('underline'));
@@ -40,11 +39,10 @@ const PdfViewer = {
         document.getElementById('zoomLabel').textContent = '150%';
         document.getElementById('pdfOverlay').style.display = 'flex';
         document.getElementById('app').style.display = 'none';
-        document.getElementById('annoList').innerHTML = '<div style="padding:10px;text-align:center;color:#888;font-size:12px;">加载中...</div>';
-        document.getElementById('attList').innerHTML = '<div style="padding:10px;text-align:center;color:#888;font-size:12px;">加载中...</div>';
+        document.getElementById('annoList').innerHTML = '<div style="padding:10px;text-align:center;color:#888;font-size:12px;">' + t('pdf.loading') + '</div>';
+        document.getElementById('attList').innerHTML = '<div style="padding:10px;text-align:center;color:#888;font-size:12px;">' + t('pdf.loading') + '</div>';
         document.getElementById('pdfContainer').innerHTML = '';
 
-        // Load document metadata (notes)
         try {
             const doc = await API.doc(docId);
             const notesEl = document.getElementById('pdfNotes');
@@ -68,12 +66,11 @@ const PdfViewer = {
             await this.renderAllPages();
             if (targetPage !== undefined && targetPage >= 0) this.scrollToPage(targetPage);
         } catch (e) {
-            document.getElementById('pdfContainer').innerHTML = '<div style="color:#fff;padding:40px;">无法加载 PDF: ' + e.message + '</div>';
+            document.getElementById('pdfContainer').innerHTML = '<div style="color:#fff;padding:40px;">' + t('pdf.cannotLoad', {msg: e.message}) + '</div>';
         }
     },
 
     close() {
-        // Save notes before closing
         this.saveNotesIfChanged();
         document.getElementById('pdfOverlay').style.display = 'none';
         document.getElementById('app').style.display = 'flex';
@@ -98,7 +95,6 @@ const PdfViewer = {
         this._lastSavedNotes = text;
         try {
             await API.updateDoc(this.docId, { notes: text });
-            // Sync back to main view
             if (typeof App !== 'undefined' && App.state.selectedDoc && App.state.selectedDoc.id === this.docId) {
                 App.state.selectedDoc.notes = text;
             }
@@ -114,22 +110,21 @@ const PdfViewer = {
 
     exportNotes() {
         const text = document.getElementById('pdfNotes').value;
-        if (!text.trim()) { this.toast('笔记为空'); return; }
+        if (!text.trim()) { this.toast(t('pdf.notesEmpty')); return; }
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        // Get title from doc
         API.doc(this.docId).then(d => {
-            a.download = (d.title || 'document').replace(/[\\/:*?"<>|]/g, '_') + '_笔记.txt';
+            a.download = (d.title || 'document').replace(/[\\/:*?"<>|]/g, '_') + '_notes.txt';
             a.click();
             URL.revokeObjectURL(url);
         }).catch(() => {
-            a.download = '笔记.txt';
+            a.download = 'notes.txt';
             a.click();
             URL.revokeObjectURL(url);
         });
-        this.toast('笔记已导出');
+        this.toast(t('pdf.notesExported'));
     },
 
     async renderAllPages() {
@@ -147,7 +142,6 @@ const PdfViewer = {
             pageDiv.style.width = viewport.width + 'px';
             pageDiv.style.height = viewport.height + 'px';
 
-            // Canvas (rendered image)
             const canvas = document.createElement('canvas');
             canvas.width = viewport.width;
             canvas.height = viewport.height;
@@ -155,7 +149,6 @@ const PdfViewer = {
             const ctx = canvas.getContext('2d');
             await page.render({ canvasContext: ctx, viewport }).promise;
 
-            // Text layer using PDF.js built-in renderer for correct positioning
             const textContent = await page.getTextContent();
             const textDiv = document.createElement('div');
             textDiv.className = 'textLayer';
@@ -164,14 +157,12 @@ const PdfViewer = {
             pageDiv.appendChild(textDiv);
 
             if (this.pdfjsLib.renderTextLayer) {
-                // PDF.js 4.x: renderTextLayer renders automatically on creation, no .render() method
                 new this.pdfjsLib.renderTextLayer({
                     textContentSource: textContent,
                     container: textDiv,
                     viewport: viewport,
                 });
             } else {
-                // Fallback: manual span creation with corrected positioning
                 for (const item of textContent.items) {
                     const tx = this.pdfjsLib.Util.transform(viewport.transform, item.transform);
                     const span = document.createElement('span');
@@ -184,7 +175,6 @@ const PdfViewer = {
                 }
             }
 
-            // Annotation overlay
             const annoLayer = document.createElement('div');
             annoLayer.className = 'annotation-layer';
             annoLayer.style.width = viewport.width + 'px';
@@ -192,7 +182,6 @@ const PdfViewer = {
             this.renderAnnotationsOnLayer(annoLayer, i - 1, viewport.width, viewport.height);
             pageDiv.appendChild(annoLayer);
 
-            // Mouse events
             pageDiv.addEventListener('click', (e) => this.handleClick(e, pageDiv, i - 1, viewport.width, viewport.height));
             pageDiv.addEventListener('mouseup', (e) => this.handleTextSelect(e, pageDiv, i - 1, viewport.width, viewport.height));
             pageDiv.addEventListener('mousedown', (e) => this.handleMouseDown(e, pageDiv, i - 1, viewport.width, viewport.height));
@@ -203,7 +192,6 @@ const PdfViewer = {
         }
     },
 
-    /* ── Annotation Rendering ── */
     renderAnnotationsOnLayer(layer, pageNum, w, h) {
         for (const a of this.annotations.filter(a => a.page === pageNum)) {
             const x = (a.x || 0) * w, y = (a.y || 0) * h;
@@ -254,7 +242,7 @@ const PdfViewer = {
         del.style.cssText = 'float:right;border:none;background:none;cursor:pointer;color:#ef4444;font-size:14px;padding:0 2px;';
         del.addEventListener('click', ev => { ev.stopPropagation(); this.deleteAnnotation(anno.id); tip.remove(); });
         tip.appendChild(del);
-        tip.appendChild(document.createTextNode(anno.text || '(无内容)'));
+        tip.appendChild(document.createTextNode(anno.text || '(' + t('empty.noContent') + ')'));
         const ar = anchor.getBoundingClientRect();
         const cr = document.getElementById('pdfContainer').getBoundingClientRect();
         tip.style.left = (ar.right - cr.left + 8) + 'px';
@@ -266,10 +254,10 @@ const PdfViewer = {
     /* ── Mouse / Tool Handling ── */
     handleClick(e, pageDiv, pageNum, w, h) {
         const sel = window.getSelection();
-        if (sel && !sel.isCollapsed) return; // skip if text was just selected
+        if (sel && !sel.isCollapsed) return;
         if (this.currentTool !== 'note') return;
         const rect = pageDiv.getBoundingClientRect();
-        const text = prompt('输入批注内容:');
+        const text = prompt(t('pdf.notePrompt'));
         if (!text) return;
         this.createAnnotation({
             page: pageNum,
@@ -288,12 +276,10 @@ const PdfViewer = {
 
     handleMouseMove(e, pageDiv, pageNum, w, h) {
         if (!this.dragStart || this.dragStart.pageNum !== pageNum) return;
-        // Visual feedback could be added here
     },
 
     handleTextSelect(e, pageDiv, pageNum, w, h) {
         if (this.currentTool === 'rect') {
-            // End rect drag
             if (!this.dragStart || this.dragStart.pageNum !== pageNum) { this.dragStart = null; return; }
             const rect = pageDiv.getBoundingClientRect();
             const ex = e.clientX - rect.left, ey = e.clientY - rect.top;
@@ -346,7 +332,7 @@ const PdfViewer = {
                 const layer = pEl.querySelector('.annotation-layer'); layer.innerHTML = '';
                 this.renderAnnotationsOnLayer(layer, data.page, parseFloat(pEl.style.width), parseFloat(pEl.style.height));
             }
-        } catch (e) { this.toast('创建失败: ' + e.message); }
+        } catch (e) { this.toast(t('pdf.annoCreateFailed', {msg: e.message})); }
     },
 
     async deleteAnnotation(annoId) {
@@ -359,19 +345,19 @@ const PdfViewer = {
                 const layer = pEl.querySelector('.annotation-layer'); layer.innerHTML = '';
                 this.renderAnnotationsOnLayer(layer, pn, parseFloat(pEl.style.width), parseFloat(pEl.style.height));
             });
-        } catch (e) { this.toast('删除失败: ' + e.message); }
+        } catch (e) { this.toast(t('pdf.annoDeleteFailed', {msg: e.message})); }
     },
 
     renderAnnoList() {
         const el = document.getElementById('annoList');
-        if (!this.annotations.length) { el.innerHTML = '<div style="padding:20px;text-align:center;color:#888;font-size:13px;">暂无批注</div>'; return; }
+        if (!this.annotations.length) { el.innerHTML = '<div style="padding:20px;text-align:center;color:#888;font-size:13px;">' + t('empty.noAnnotations') + '</div>'; return; }
         const g = {};
         this.annotations.forEach(a => { (g[a.page + 1] = g[a.page + 1] || []).push(a); });
         el.innerHTML = Object.entries(g).sort((a,b) => a[0]-b[0]).map(([pg, items]) => `
-            <div style="font-size:11px;color:#888;padding:4px 8px;font-weight:600;">第 ${pg} 页</div>
+            <div style="font-size:11px;color:#888;padding:4px 8px;font-weight:600;">${t('pdf.annoPage', {pg})}</div>
             ${items.map(a => `<div class="anno-entry" style="border-left-color:${a.color};" data-page="${a.page}">
                 <div class="anno-type">${a.anno_type}</div>
-                <div class="anno-text">${a.text ? esc(a.text) : '<em style="color:#aaa;">无内容</em>'}</div>
+                <div class="anno-text">${a.text ? esc(a.text) : '<em style="color:#aaa;">' + t('empty.noContent') + '</em>'}</div>
                 <button class="anno-del" data-anno-id="${a.id}">✕</button>
             </div>`).join('')}
         `).join('');
@@ -379,7 +365,7 @@ const PdfViewer = {
             entry.addEventListener('click', e => { if (!e.target.classList.contains('anno-del')) this.scrollToPage(parseInt(entry.dataset.page)); });
         });
         el.querySelectorAll('.anno-del').forEach(btn => {
-            btn.addEventListener('click', e => { e.stopPropagation(); if (confirm('删除此批注？')) this.deleteAnnotation(parseInt(btn.dataset.annoId)); });
+            btn.addEventListener('click', e => { e.stopPropagation(); if (confirm(t('delete.annoConfirm'))) this.deleteAnnotation(parseInt(btn.dataset.annoId)); });
         });
     },
 
@@ -405,13 +391,13 @@ const PdfViewer = {
         try {
             const atts = await API.attachments(this.docId) || [];
             this.renderAttList(atts);
-        } catch (e) { document.getElementById('attList').innerHTML = '<div style="padding:10px;color:#888;font-size:12px;">加载失败</div>'; }
+        } catch (e) { document.getElementById('attList').innerHTML = '<div style="padding:10px;color:#888;font-size:12px;">' + t('pdf.loadFailed') + '</div>'; }
     },
 
     renderAttList(atts) {
         const el = document.getElementById('attList');
         if (!atts.length) {
-            el.innerHTML = '<div style="padding:10px;text-align:center;color:#888;font-size:12px;">暂无附件</div>';
+            el.innerHTML = '<div style="padding:10px;text-align:center;color:#888;font-size:12px;">' + t('empty.noAttachments') + '</div>';
             return;
         }
         const icons = { txt: '📄', doc: '📝', docx: '📝', pdf: '📑', md: '📋', log: '📃', xlsx: '📊', xls: '📊', pptx: '🖥', csv: '📈', json: '📋', xml: '📋' };
@@ -432,14 +418,14 @@ const PdfViewer = {
         el.querySelectorAll('.att-del').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (confirm('删除此附件？')) this.deleteAtt(parseInt(btn.dataset.attId));
+                if (confirm(t('delete.attConfirm'))) this.deleteAtt(parseInt(btn.dataset.attId));
             });
         });
     },
 
     async viewAttachment(attId) {
         const m = document.createElement('div'); m.className = 'att-content-modal';
-        m.innerHTML = `<div class="att-content-box"><h3><span>加载中...</span><button style="border:none;background:none;cursor:pointer;font-size:18px;" onclick="this.closest('.att-content-modal').remove()">✕</button></h3><div class="att-body">加载中...</div></div>`;
+        m.innerHTML = `<div class="att-content-box"><h3><span>${t('pdf.attPreviewLoading')}</span><button style="border:none;background:none;cursor:pointer;font-size:18px;" onclick="this.closest('.att-content-modal').remove()">✕</button></h3><div class="att-body">${t('pdf.attPreviewLoading')}</div></div>`;
         document.body.appendChild(m);
         m.addEventListener('click', (e) => { if (e.target === m) m.remove(); });
         try {
@@ -447,21 +433,21 @@ const PdfViewer = {
             const data = await resp.json();
             m.querySelector('h3 span').textContent = data.filename;
             if (data.ok) {
-                m.querySelector('.att-body').textContent = (data.truncated ? '// --- 文件过大，仅显示前 50000 字符 ---\n' : '') + data.content;
+                m.querySelector('.att-body').textContent = (data.truncated ? t('pdf.attTooLarge') : '') + data.content;
             } else {
-                m.querySelector('.att-body').innerHTML = `<p>${data.msg}</p><p><a href="/api/documents/${this.docId}/attachments/${attId}/download" target="_blank">点击下载</a></p>`;
+                m.querySelector('.att-body').innerHTML = `<p>${data.msg}</p><p><a href="/api/documents/${this.docId}/attachments/${attId}/download" target="_blank">${t('pdf.attClickDownload')}</a></p>`;
             }
         } catch (e) {
-            m.querySelector('.att-body').textContent = '加载失败: ' + e.message;
+            m.querySelector('.att-body').textContent = t('pdf.attPreviewFailed', {msg: e.message});
         }
     },
 
     async deleteAtt(attId) {
         try {
             await API.deleteAttachment(this.docId, attId);
-            this.toast('附件已删除');
+            this.toast(t('pdf.attDeleted'));
             this.loadAttachments();
-        } catch (e) { this.toast('删除失败: ' + e.message, true); }
+        } catch (e) { this.toast(t('pdf.attDeleteFailed', {msg: e.message}), true); }
     },
 
     /* ── Upload note ── */
@@ -473,13 +459,13 @@ const PdfViewer = {
         try {
             const resp = await fetch(`/api/documents/${this.docId}/attachments`, { method: 'POST', body: form });
             if (resp.ok) {
-                this.toast('附件已上传: ' + file.name);
+                this.toast(t('pdf.attUploaded', {name: file.name}));
                 this.loadAttachments();
             } else {
                 const err = await resp.json();
-                this.toast('上传失败: ' + (err.detail || ''), true);
+                this.toast(t('pdf.attUploadFailed', {msg: (err.detail || '')}), true);
             }
-        } catch (ex) { this.toast('上传失败: ' + ex.message, true); }
+        } catch (ex) { this.toast(t('pdf.attUploadFailed', {msg: ex.message}), true); }
         e.target.value = '';
     },
 

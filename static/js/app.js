@@ -20,14 +20,27 @@ const App = {
         document.getElementById("searchInput").addEventListener("input", () => this.search());
         document.getElementById("yearFilter").addEventListener("change", () => this.search());
 
+        // Language toggle — inside settings popup
+        document.getElementById("popupLang").addEventListener("click", () => {
+            const next = getLang() === 'zh' ? 'en' : 'zh';
+            setLang(next);
+            document.getElementById("popupLang").textContent = t('app.langToggle');
+            applyStaticI18n();
+            document.title = t('app.title');
+            document.getElementById("settingsPopup").classList.remove("show");
+        });
+
+        // Settings (gear) button + popup
+        this.initSettings();
+
         // Resizers
         this.initResizers();
 
-        // Theme toggle
-        this.initTheme();
-
         // Clean up orphaned records (files deleted from disk)
         try { await fetch("/api/documents/cleanup-orphans"); } catch(e) {}
+
+        // Apply initial i18n
+        document.title = t('app.title');
 
         await Tags.loadTree();
         await this.search();
@@ -35,7 +48,6 @@ const App = {
 
     /* ── Resizers ── */
     initResizers() {
-        // Sidebar width resizer
         let sidebar = document.getElementById("sidebar");
         let rsSide = document.getElementById("resizerSidebar");
         let startX, startW;
@@ -58,7 +70,6 @@ const App = {
             document.body.style.userSelect = "";
         });
 
-        // Preview panel height resizer
         let grid = document.getElementById("docGrid");
         let preview = document.getElementById("preview");
         let rsPrev = document.getElementById("resizerPreview");
@@ -110,12 +121,12 @@ const App = {
     renderGrid() {
         const el = document.getElementById("docGrid");
         if (!this.state.docs.length) {
-            el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);font-size:14px;">没有文献 — 点击右上角 + 添加</div>';
+            el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);font-size:14px;">' + t('empty.noDocs') + '</div>';
             return;
         }
         el.innerHTML = this.state.docs.map(d => {
             const sel = this.state.selectedDoc?.id === d.id ? ' selected' : '';
-            const meta = [d.authors, d.year, d.journal].filter(Boolean).join(' · ') || '元数据待补充';
+            const meta = [d.authors, d.year, d.journal].filter(Boolean).join(' · ') || t('empty.metaPending');
             return `<div class="doc-card${sel}" data-doc-id="${d.id}">
                 <img class="card-thumb" src="/api/documents/${d.id}/thumbnail"
                      loading="lazy" onerror="this.replaceWith(placeholder())"
@@ -130,7 +141,6 @@ const App = {
             </div>`;
         }).join('');
 
-        // Also define placeholder helper
         window._placeholderIdx = 0;
 
         el.querySelectorAll(".card-thumb").forEach(img => {
@@ -152,7 +162,7 @@ const App = {
         const years = [...new Set(this.state.docs.map(d => d.year).filter(Boolean))].sort((a,b)=>b-a);
         const sel = document.getElementById("yearFilter");
         const cur = sel.value;
-        sel.innerHTML = '<option value="">全部年份</option>' + years.map(y => `<option value="${y}">${y}</option>`).join("");
+        sel.innerHTML = '<option value="">' + t('toolbar.allYears') + '</option>' + years.map(y => `<option value="${y}">${y}</option>`).join("");
         sel.value = cur;
     },
 
@@ -171,7 +181,7 @@ const App = {
         const panel = document.getElementById("preview");
         if (!doc) {
             panel.className = "empty";
-            panel.innerHTML = "<span>选择一篇文献查看批注和笔记</span>";
+            panel.innerHTML = "<span>" + t('empty.preview') + "</span>";
             return;
         }
         panel.className = "";
@@ -184,57 +194,55 @@ const App = {
 
         panel.innerHTML = `
             <div id="previewHeader">
-                <input id="previewTitle" value="${this.esc(doc.title)}" style="flex:1;font-size:14px;font-weight:600;padding:4px 6px;border-radius:4px;" title="点击编辑标题">
-                <button id="btnDeleteDoc" class="btn btn-danger btn-sm" style="flex-shrink:0;">删除</button>
+                <input id="previewTitle" value="${this.esc(doc.title)}" style="flex:1;font-size:14px;font-weight:600;padding:4px 6px;border-radius:4px;" title="${t('preview.editTitle')}">
+                <button id="btnDeleteDoc" class="btn btn-danger btn-sm" style="flex-shrink:0;">${t('preview.delete')}</button>
             </div>
             <div id="previewContent" style="display:flex;gap:12px;flex:1;overflow:hidden;">
                 <!-- Col 1: Annotations -->
                 <div class="col" style="flex:2;">
-                    <h4>批注 (${annos.length})</h4>
+                    <h4>${t('preview.annotations', {count: annos.length})}</h4>
                     <div style="overflow-y:auto;flex:1;">
                     ${annos.length ? Object.entries(grouped).reverse().map(([page, items]) =>
                         items.map(a => `<div class="anno-mini" style="border-left-color:${a.color};" data-page="${a.page}">
-                            <span class="type">第${page}页 ${a.anno_type}</span>
-                            <div>${a.text ? this.esc(a.text) : '<em>无内容</em>'}</div>
+                            <span class="type">${t('preview.page')}${page}${t('preview.pageSuffix')} ${a.anno_type}</span>
+                            <div>${a.text ? this.esc(a.text) : '<em>' + t('empty.noContent') + '</em>'}</div>
                         </div>`).join('')
-                    ).join('') : '<div class="note-mini">暂无批注</div>'}
+                    ).join('') : '<div class="note-mini">' + t('empty.noAnnotations') + '</div>'}
                     </div>
                 </div>
                 <!-- Col 2: Editable metadata -->
                 <div class="col" style="flex:2;">
-                    <h4>信息</h4>
+                    <h4>${t('preview.info')}</h4>
                     <div style="display:flex;flex-direction:column;gap:6px;">
-                        <div><label style="font-size:10px;color:var(--text-muted);">期刊</label>
+                        <div><label style="font-size:10px;color:var(--text-muted);">${t('preview.journal')}</label>
                             <input id="previewJournal" value="${this.esc(doc.journal||'')}" style="width:100%;padding:4px 6px;font-size:12px;"></div>
-                        <div><label style="font-size:10px;color:var(--text-muted);">作者</label>
+                        <div><label style="font-size:10px;color:var(--text-muted);">${t('preview.authors')}</label>
                             <input id="previewAuthors" value="${this.esc(doc.authors||'')}" style="width:100%;padding:4px 6px;font-size:12px;"></div>
-                        <div><label style="font-size:10px;color:var(--text-muted);">年份</label>
+                        <div><label style="font-size:10px;color:var(--text-muted);">${t('preview.year')}</label>
                             <input type="number" id="previewYear" value="${doc.year||''}" style="width:100%;padding:4px 6px;font-size:12px;"></div>
-                        <div><label style="font-size:10px;color:var(--text-muted);">DOI</label>
+                        <div><label style="font-size:10px;color:var(--text-muted);">${t('preview.doi')}</label>
                             <input id="previewDoi" value="${doc.doi||''}" style="width:100%;padding:4px 6px;font-size:12px;"></div>
-                        <div><label style="font-size:10px;color:var(--text-muted);">标签</label>
+                        <div><label style="font-size:10px;color:var(--text-muted);">${t('preview.tags')}</label>
                             <div class="card-tags" id="previewTags" style="margin-bottom:3px;">${(doc.tags||[]).map(t =>
                                 `<span class="card-tag" style="background:${t.color};cursor:default;">${this.esc(t.name)}<span data-remove-tag="${t.id}" style="cursor:pointer;margin-left:2px;">&times;</span></span>`
-                            ).join('') || '<span class="note-mini">无</span>'}</div>
-                            <select id="previewAddTag" style="width:100%;padding:3px;font-size:11px;border:1px solid var(--border);border-radius:4px;"><option value="">+ 标签</option></select>
+                            ).join('') || '<span class="note-mini">' + t('empty.none') + '</span>'}</div>
+                            <select id="previewAddTag" style="width:100%;padding:3px;font-size:11px;border:1px solid var(--border);border-radius:4px;"><option value="">${t('preview.addTag')}</option></select>
                         </div>
                     </div>
                 </div>
                 <!-- Col 3: Notes -->
                 <div class="col" style="flex:3;">
-                    <h4>笔记</h4>
+                    <h4>${t('preview.notes')}</h4>
                     <textarea id="previewNotes" style="width:100%;flex:1;min-height:120px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;resize:vertical;font-family:inherit;">${this.esc(doc.notes||'')}</textarea>
                 </div>
             </div>`;
 
         // --- Bind events ---
-        // Title: save on blur / enter
         const titleEl = document.getElementById("previewTitle");
         titleEl.addEventListener("focus", () => { titleEl.style.borderColor = "var(--primary)"; titleEl.style.background = "#fff"; });
         titleEl.addEventListener("blur", () => { titleEl.style.borderColor = ""; titleEl.style.background = ""; this.saveField("title", titleEl.value); });
         titleEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); titleEl.blur(); } });
 
-        // Inline editable fields
         ["previewYear","previewJournal","previewDoi","previewAuthors"].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -242,7 +250,6 @@ const App = {
             el.addEventListener("change", () => this.saveField(field, el.value));
         });
 
-        // Notes
         const notesEl = document.getElementById("previewNotes");
         let notesTimer;
         notesEl.addEventListener("input", () => {
@@ -250,12 +257,10 @@ const App = {
             notesTimer = setTimeout(() => this.saveField("notes", notesEl.value), 600);
         });
 
-        // Delete
         document.getElementById("btnDeleteDoc").addEventListener("click", () => {
-            if (confirm(`删除「${doc.title.slice(0,50)}」？此操作不可撤销。`)) this.deleteDoc(doc.id);
+            if (confirm(t('delete.docConfirm', {title: doc.title.slice(0,50)}))) this.deleteDoc(doc.id);
         });
 
-        // Tags
         document.querySelectorAll("#previewTags [data-remove-tag]").forEach(sp => {
             sp.addEventListener("click", async (e) => {
                 e.stopPropagation();
@@ -274,7 +279,6 @@ const App = {
             App.renderGrid(); App.renderPreview();
         });
 
-        // Annotations click → open PDF
         panel.querySelectorAll(".anno-mini").forEach(el => {
             el.addEventListener("click", () => this.openPdf(doc.id, parseInt(el.dataset.page)));
         });
@@ -289,7 +293,6 @@ const App = {
             const updated = await API.updateDoc(doc.id, data);
             this.state.selectedDoc = updated;
             this.renderGrid();
-            // If notes changed and PDF viewer is open for this doc, sync
             if (field === "notes" && typeof PdfViewer !== 'undefined' && PdfViewer.docId === doc.id) {
                 const el = document.getElementById("pdfNotes");
                 if (el && el.value !== value) el.value = value;
@@ -303,7 +306,7 @@ const App = {
             const docTagIds = (this.state.selectedDoc.tags||[]).map(t=>t.id);
             const avail = all.filter(t=>!docTagIds.includes(t.id));
             const sel = document.getElementById("previewAddTag");
-            if (sel) sel.innerHTML = '<option value="">+ 标签</option>' + avail.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+            if (sel) sel.innerHTML = '<option value="">' + t('preview.addTag') + '</option>' + avail.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
         } catch(e){}
     },
 
@@ -316,19 +319,19 @@ const App = {
     showAddDialog() {
         const m = document.getElementById("modalContainer");
         m.innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal">
-            <h3>添加文献</h3>
-            <div class="form-group"><label>PDF 文件 *</label><input type="file" id="addPdf" accept=".pdf"></div>
+            <h3>${t('addDoc.title')}</h3>
+            <div class="form-group"><label>${t('addDoc.pdfFile')}</label><input type="file" id="addPdf" accept=".pdf"></div>
             <div id="extractStatus" style="font-size:11px;color:var(--text-muted);margin-bottom:4px;display:none;"></div>
             <div id="dupWarning" style="font-size:12px;color:#f59e0b;margin-bottom:4px;display:none;"></div>
-            <div class="form-group"><label>标题 *</label><input id="addTitle"></div>
-            <div class="form-group"><label>作者</label><input id="addAuthors"></div>
-            <div class="form-group"><label>年份</label><input type="number" id="addYear"></div>
-            <div class="form-group"><label>期刊</label><input id="addJournal"></div>
-            <div class="form-group"><label>DOI</label><input id="addDoi"></div>
-            <div class="form-group"><label>摘要</label><textarea id="addAbstract"></textarea></div>
+            <div class="form-group"><label>${t('addDoc.titleField')}</label><input id="addTitle"></div>
+            <div class="form-group"><label>${t('addDoc.authors')}</label><input id="addAuthors"></div>
+            <div class="form-group"><label>${t('addDoc.year')}</label><input type="number" id="addYear"></div>
+            <div class="form-group"><label>${t('addDoc.journal')}</label><input id="addJournal"></div>
+            <div class="form-group"><label>${t('addDoc.doi')}</label><input id="addDoi"></div>
+            <div class="form-group"><label>${t('addDoc.abstract')}</label><textarea id="addAbstract"></textarea></div>
             <div class="form-actions">
-                <button class="btn" id="btnCancel">取消</button>
-                <button class="btn btn-primary" id="btnCreate">添加</button>
+                <button class="btn" id="btnCancel">${t('addDoc.cancel')}</button>
+                <button class="btn btn-primary" id="btnCreate">${t('addDoc.add')}</button>
             </div>
         </div></div>`;
         document.getElementById("btnCancel").addEventListener("click", () => this.closeModal());
@@ -340,19 +343,17 @@ const App = {
             document.getElementById("addTitle").value = filename;
             document.getElementById("addTitle").style.borderColor = "";
             document.getElementById("dupWarning").style.display = "none";
-            const s = document.getElementById("extractStatus"); s.style.display="block"; s.textContent="提取元数据中...";
+            const s = document.getElementById("extractStatus"); s.style.display="block"; s.textContent=t('addDoc.extracting');
             try {
                 const meta = await API.extractMeta(f);
                 if (meta.title) { document.getElementById("addTitle").value = meta.title; document.getElementById("addTitle").style.borderColor="#22c55e"; }
                 if (meta.authors) document.getElementById("addAuthors").value = meta.authors;
                 if (meta.doi) document.getElementById("addDoi").value = meta.doi.replace(/^\.org\//,'');
-                s.textContent = meta.title ? "✓ 已自动填充" : "已填入文件名";
+                s.textContent = meta.title ? t('addDoc.autoFilled') : t('addDoc.filenameUsed');
                 s.style.color = meta.title ? "#22c55e" : "var(--text-muted)";
-                // Check duplicate
                 App._checkDup();
-            } catch (e) { s.textContent = "已填入文件名"; s.style.color = "var(--text-muted)"; }
+            } catch (e) { s.textContent = t('addDoc.filenameUsed'); s.style.color = "var(--text-muted)"; }
         });
-        // Check duplicate on title change
         document.getElementById("addTitle").addEventListener("input", () => App._checkDup());
         document.getElementById("addAuthors").addEventListener("input", () => App._checkDup());
         document.getElementById("addYear").addEventListener("input", () => App._checkDup());
@@ -370,7 +371,7 @@ const App = {
             const data = await resp.json();
             if (data.duplicate) {
                 dup.style.display = "block";
-                dup.textContent = `⚠ 可能重复：库中已存在「${data.title}」(${data.year || '未知年份'})`;
+                dup.textContent = t('addDoc.dupWarning', {title: data.title, year: (data.year || t('addDoc.dupUnknownYear'))});
             } else {
                 dup.style.display = "none";
             }
@@ -380,13 +381,12 @@ const App = {
     async createDoc() {
         const pdf = document.getElementById("addPdf");
         const title = document.getElementById("addTitle").value.trim();
-        if (!pdf.files.length) return this.toast("请选择 PDF", true);
-        if (!title) return this.toast("标题不能为空", true);
+        if (!pdf.files.length) return this.toast(t('addDoc.selectPdf'), true);
+        if (!title) return this.toast(t('addDoc.titleRequired'), true);
 
-        // Final duplicate check
         const dup = document.getElementById("dupWarning");
         if (dup.style.display !== "none") {
-            if (!confirm("库中可能已存在相同文献，是否继续添加？")) return;
+            if (!confirm(t('addDoc.dupConfirm'))) return;
         }
 
         const form = new FormData();
@@ -399,7 +399,7 @@ const App = {
         form.append("abstract", document.getElementById("addAbstract").value.trim());
         try {
             await fetch("/api/documents", { method:"POST", body:form });
-            this.closeModal(); this.toast("文献已添加"); await this.search();
+            this.closeModal(); this.toast(t('addDoc.added')); await this.search();
         } catch (e) { this.toast(e.message, true); }
     },
 
@@ -407,35 +407,50 @@ const App = {
         try {
             await API.deleteDoc(id);
             this.state.selectedDoc = null;
-            this.toast("文献已删除"); await this.search();
+            this.toast(t('addDoc.deleted')); await this.search();
             document.getElementById("preview").className = "empty";
-            document.getElementById("preview").innerHTML = "<span>选择一篇文献查看批注和笔记</span>";
+            document.getElementById("preview").innerHTML = "<span>" + t('empty.preview') + "</span>";
         } catch (e) { this.toast(e.message, true); }
     },
 
     /* ── Utils ── */
     closeModal() { document.getElementById("modalContainer").innerHTML = ""; },
 
-    initTheme() {
-        const btn = document.getElementById("btnTheme");
-        const saved = localStorage.getItem("lm-theme");
-        if (saved === "dark") {
+    initSettings() {
+        const btn = document.getElementById("btnSettings");
+        const popup = document.getElementById("settingsPopup");
+        const themeBtn = document.getElementById("popupTheme");
+
+        const savedTheme = localStorage.getItem("lm-theme");
+        if (savedTheme === "dark") {
             document.body.classList.add("dark");
-            btn.textContent = "☀️";
+            themeBtn.innerHTML = "☀️ " + t('settings.theme');
         }
+
+        themeBtn.addEventListener("click", () => {
+            const isDark = document.body.classList.toggle("dark");
+            themeBtn.innerHTML = (isDark ? "☀️ " : "🌙 ") + t('settings.theme');
+            localStorage.setItem("lm-theme", isDark ? "dark" : "light");
+            popup.classList.remove("show");
+        });
+
         btn.addEventListener("click", (e) => {
-            // Only toggle if not dragged
             if (btn.dataset.wasDragged === "1") {
                 btn.dataset.wasDragged = "0";
                 return;
             }
-            const isDark = document.body.classList.toggle("dark");
-            btn.textContent = isDark ? "☀️" : "🌙";
-            localStorage.setItem("lm-theme", isDark ? "dark" : "light");
+            popup.classList.toggle("show");
         });
 
-        // Save position
-        const savedPos = localStorage.getItem("lm-theme-pos");
+        document.addEventListener("click", (e) => {
+            if (!btn.contains(e.target) && !popup.contains(e.target)) {
+                popup.classList.remove("show");
+            }
+        });
+
+        document.getElementById("popupLang").textContent = t('app.langToggle');
+
+        const savedPos = localStorage.getItem("lm-settings-pos");
         if (savedPos) {
             const [tx, ty] = savedPos.split(",").map(Number);
             btn.style.top = ty + "px";
@@ -443,7 +458,6 @@ const App = {
             btn.style.right = "auto";
         }
 
-        // Draggable
         let dragX, dragY, startX, startY, moved;
         btn.addEventListener("mousedown", (e) => {
             if (e.button !== 0) return;
@@ -471,7 +485,7 @@ const App = {
                 btn.classList.remove("dragging");
                 if (moved) {
                     btn.dataset.wasDragged = "1";
-                    localStorage.setItem("lm-theme-pos", btn.style.left.replace("px","") + "," + btn.style.top.replace("px",""));
+                    localStorage.setItem("lm-settings-pos", btn.style.left.replace("px","") + "," + btn.style.top.replace("px",""));
                 }
             }
         });

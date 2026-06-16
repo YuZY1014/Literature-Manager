@@ -25,17 +25,37 @@ body.dark .anno-mini:hover { background: #334155; }
 body.dark input, body.dark textarea, body.dark select { background: #1e293b; color: #e2e8f0; border-color: #334155; }
 body.dark .modal { background: #1e293b; }
 body.dark code { background: #334155; }
-/* Theme toggle button */
-#btnTheme {
+/* Settings button (draggable gear) */
+#btnSettings {
     position: fixed; top: 12px; right: 16px; z-index: 100;
     width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
-    background: var(--surface); cursor: grab; font-size: 16px;
+    background: var(--surface); cursor: grab; font-size: 18px;
     display: flex; align-items: center; justify-content: center;
     color: var(--text); transition: box-shadow .2s; box-shadow: 0 2px 8px rgba(0,0,0,.12);
     user-select: none;
 }
-#btnTheme:hover { box-shadow: 0 4px 16px rgba(0,0,0,.18); }
-#btnTheme.dragging { cursor: grabbing; opacity: .8; }
+#btnSettings:hover { box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+#btnSettings.dragging { cursor: grabbing; opacity: .8; }
+
+/* Settings popup */
+.settings-popup {
+    position: fixed; top: 52px; right: 16px; z-index: 101;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.15);
+    padding: 8px; min-width: 150px;
+    display: none; flex-direction: column; gap: 4px;
+}
+.settings-popup.show { display: flex; }
+.settings-popup button {
+    padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 13px; background: transparent; color: var(--text);
+    display: flex; align-items: center; gap: 8px; text-align: left;
+    transition: background .1s;
+}
+.settings-popup button:hover { background: var(--primary-light); }
+.settings-popup .sep {
+    height: 1px; background: var(--border); margin: 2px 0;
+}
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
