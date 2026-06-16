@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文献管理系统</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<button id="btnTheme" title="切换日间/夜间模式">🌙</button>
+
+<div id="app">
+    <!-- ──── LEFT SIDEBAR: Tag Tree ──── -->
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <span>标签分类</span>
+            <button id="btnNewTag" title="新建标签">+</button>
+        </div>
+        <div class="tag-tree" id="tagTree"></div>
+        <div class="sidebar-footer">
+            <button class="btn btn-sm btn-primary" id="btnZoteroImport" style="width:100%;margin-bottom:8px;">从 Zotero 导入</button>
+            <div class="author-info">
+                <div>Produced by PotaKin</div>
+                <div>E-mail: 1007992107@qq.com</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Resizer: sidebar ↔ main -->
+    <div class="resizer resizer-h" id="resizerSidebar"></div>
+
+    <!-- ──── RIGHT AREA: Cards Grid + Preview ──── -->
+    <section id="main">
+        <!-- Toolbar -->
+        <div id="toolbar">
+            <input type="text" id="searchInput" placeholder="搜索标题、作者、摘要...">
+            <select id="yearFilter"><option value="">全部年份</option></select>
+            <button id="btnAddDoc">+ 添加文献</button>
+        </div>
+
+        <!-- Document cards grid -->
+        <div id="docGrid">
+            <div class="empty-state">选择左侧标签或搜索文献</div>
+        </div>
+
+        <!-- Resizer: grid ↔ preview -->
+        <div class="resizer resizer-v" id="resizerPreview"></div>
+
+        <!-- Bottom preview panel -->
+        <div id="preview" class="empty">
+            <span>选择一篇文献查看批注和笔记</span>
+        </div>
+    </section>
+</div>
+
+<!-- PDF Reader overlay -->
+<div id="pdfOverlay" style="display:none;">
+    <div id="pdfToolbar">
+        <button id="btnPdfBack">← 返回列表</button>
+        <span class="sep"></span>
+        <button id="btnHighlight">高亮</button>
+        <button id="btnUnderline">下划线</button>
+        <button id="btnRect">方框</button>
+        <button id="btnNote">批注</button>
+        <button id="btnNone" class="active">指针</button>
+        <span class="sep"></span>
+        <input type="color" id="annoColor" value="#ffff00">
+        <span class="sep"></span>
+        <button id="btnZoomOut">−</button>
+        <span style="font-size:13px;min-width:36px;text-align:center;" id="zoomLabel">150%</span>
+        <button id="btnZoomIn">+</button>
+        <span class="sep"></span>
+        <button id="btnPrevPage">◀</button>
+        <input type="number" id="pageInput" value="1">
+        <span style="font-size:13px;">/ <span id="totalPages">0</span></span>
+        <button id="btnNextPage">▶</button>
+        <span class="sep"></span>
+        <input type="file" id="pdfNoteUpload" accept=".txt,.doc,.docx" style="display:none;">
+        <button id="btnUploadNote" title="上传笔记附件">📎 附件</button>
+    </div>
+    <div id="pdfMainArea">
+        <div id="pdfContainer"></div>
+        <div id="sidePanel">
+            <div class="panel-third panel-notes">
+                <div class="panel-title-row">
+                    <h3>笔记</h3>
+                    <button id="btnExportNote" title="导出笔记为 TXT" style="border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-size:11px;padding:1px 6px;">导出</button>
+                </div>
+                <textarea id="pdfNotes" placeholder="在此编写笔记..." style="width:100%;flex:1;padding:6px 8px;border:none;resize:none;font-size:12px;font-family:inherit;outline:none;background:var(--surface);color:var(--text);overflow-y:auto;"></textarea>
+            </div>
+            <div class="panel-third panel-annos">
+                <h3>批注列表</h3>
+                <div id="annoList"></div>
+            </div>
+            <div class="panel-third panel-atts">
+                <h3>附件列表</h3>
+                <div id="attList"><div style="padding:20px;text-align:center;color:#888;font-size:13px;">-</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalContainer"></div>
+<div id="toastContainer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/pdfviewer.js"></script>
+<script src="/static/js/tags.js"></script>
+<script src="/static/js/import.js"></script>
+</body>
+</html>

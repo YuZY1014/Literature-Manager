@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Build artifacts (PyInstaller)
+dist/
+build/
+*.spec
+
+# Personal data
+data/*.db
+papers/
+attachments/
+
+# OS
+.DS_Store
+Thumbs.db
