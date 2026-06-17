@@ -1,5 +1,10 @@
 async function api(url, opts = {}) {
-    const res = await fetch(url, opts);
+    let res;
+    try {
+        res = await fetch(url, opts);
+    } catch (e) {
+        throw new Error("无法连接到服务器，请检查应用是否正在运行");
+    }
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
         throw new Error(err.detail || "Request failed");

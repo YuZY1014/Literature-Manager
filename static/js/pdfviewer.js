@@ -21,16 +21,38 @@ const PdfViewer = {
         document.getElementById('pageInput').addEventListener('change', () => this.goToPage());
         document.getElementById('btnZoomIn').addEventListener('click', () => this.zoom(0.25));
         document.getElementById('btnZoomOut').addEventListener('click', () => this.zoom(-0.25));
+
+        // Ctrl+wheel zooms PDF (capture phase to intercept before browser)
+        document.addEventListener('wheel', (e) => {
+            if (e.ctrlKey && document.getElementById('pdfOverlay').style.display !== 'none') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.zoom(e.deltaY < 0 ? 0.25 : -0.25);
+            }
+        }, { capture: true, passive: false });
+
         document.getElementById('btnUploadNote').addEventListener('click', () => {
             document.getElementById('pdfNoteUpload').click();
         });
         document.getElementById('pdfNoteUpload').addEventListener('change', (e) => this.uploadNote(e));
     },
 
-    zoom(delta) {
+    async zoom(delta) {
+        const container = document.getElementById('pdfContainer');
+        // Track what page is at the top of the viewport before zoom
+        let topPage = 0;
+        for (const p of this.pages) {
+            const r = p.div.getBoundingClientRect();
+            if (r.bottom > container.getBoundingClientRect().top + 50) { topPage = parseInt(p.div.dataset.page); break; }
+        }
         this.scale = Math.max(0.5, Math.min(4.0, this.scale + delta));
         document.getElementById('zoomLabel').textContent = Math.round(this.scale * 100) + '%';
-        this.renderAllPages();
+        await this.renderAllPages();
+        // Restore position to the same page
+        if (topPage > 0) {
+            const pEl = document.querySelector(`.pdf-page[data-page="${topPage}"]`);
+            if (pEl) pEl.scrollIntoView({ block: 'start' });
+        }
     },
 
     async open(docId, targetPage) {
@@ -134,37 +156,42 @@ const PdfViewer = {
 
         for (let i = 1; i <= this.pdfDoc.numPages; i++) {
             const page = await this.pdfDoc.getPage(i);
-            const viewport = page.getViewport({ scale: this.scale });
+            const pixelRatio = window.devicePixelRatio || 1;
+            const viewport = page.getViewport({ scale: this.scale * pixelRatio });
 
             const pageDiv = document.createElement('div');
             pageDiv.className = 'pdf-page';
             pageDiv.dataset.page = i - 1;
-            pageDiv.style.width = viewport.width + 'px';
-            pageDiv.style.height = viewport.height + 'px';
+            pageDiv.style.width = (viewport.width / pixelRatio) + 'px';
+            pageDiv.style.height = (viewport.height / pixelRatio) + 'px';
 
             const canvas = document.createElement('canvas');
             canvas.width = viewport.width;
             canvas.height = viewport.height;
+            canvas.style.width = (viewport.width / pixelRatio) + 'px';
+            canvas.style.height = (viewport.height / pixelRatio) + 'px';
             pageDiv.appendChild(canvas);
             const ctx = canvas.getContext('2d');
             await page.render({ canvasContext: ctx, viewport }).promise;
 
+            // Text layer uses logical (non-scaled) viewport
+            const logicalViewport = page.getViewport({ scale: this.scale });
             const textContent = await page.getTextContent();
             const textDiv = document.createElement('div');
             textDiv.className = 'textLayer';
-            textDiv.style.width = viewport.width + 'px';
-            textDiv.style.height = viewport.height + 'px';
+            textDiv.style.width = logicalViewport.width + 'px';
+            textDiv.style.height = logicalViewport.height + 'px';
             pageDiv.appendChild(textDiv);
 
             if (this.pdfjsLib.renderTextLayer) {
                 new this.pdfjsLib.renderTextLayer({
                     textContentSource: textContent,
                     container: textDiv,
-                    viewport: viewport,
+                    viewport: logicalViewport,
                 });
             } else {
                 for (const item of textContent.items) {
-                    const tx = this.pdfjsLib.Util.transform(viewport.transform, item.transform);
+                    const tx = this.pdfjsLib.Util.transform(logicalViewport.transform, item.transform);
                     const span = document.createElement('span');
                     span.textContent = item.str;
                     span.style.left = tx[4] + 'px';
@@ -177,18 +204,18 @@ const PdfViewer = {
 
             const annoLayer = document.createElement('div');
             annoLayer.className = 'annotation-layer';
-            annoLayer.style.width = viewport.width + 'px';
-            annoLayer.style.height = viewport.height + 'px';
-            this.renderAnnotationsOnLayer(annoLayer, i - 1, viewport.width, viewport.height);
+            annoLayer.style.width = logicalViewport.width + 'px';
+            annoLayer.style.height = logicalViewport.height + 'px';
+            this.renderAnnotationsOnLayer(annoLayer, i - 1, logicalViewport.width, logicalViewport.height);
             pageDiv.appendChild(annoLayer);
 
-            pageDiv.addEventListener('click', (e) => this.handleClick(e, pageDiv, i - 1, viewport.width, viewport.height));
-            pageDiv.addEventListener('mouseup', (e) => this.handleTextSelect(e, pageDiv, i - 1, viewport.width, viewport.height));
-            pageDiv.addEventListener('mousedown', (e) => this.handleMouseDown(e, pageDiv, i - 1, viewport.width, viewport.height));
-            pageDiv.addEventListener('mousemove', (e) => this.handleMouseMove(e, pageDiv, i - 1, viewport.width, viewport.height));
+            pageDiv.addEventListener('click', (e) => this.handleClick(e, pageDiv, i - 1, logicalViewport.width, logicalViewport.height));
+            pageDiv.addEventListener('mouseup', (e) => this.handleTextSelect(e, pageDiv, i - 1, logicalViewport.width, logicalViewport.height));
+            pageDiv.addEventListener('mousedown', (e) => this.handleMouseDown(e, pageDiv, i - 1, logicalViewport.width, logicalViewport.height));
+            pageDiv.addEventListener('mousemove', (e) => this.handleMouseMove(e, pageDiv, i - 1, logicalViewport.width, logicalViewport.height));
 
             container.appendChild(pageDiv);
-            this.pages.push({ div: pageDiv, viewport });
+            this.pages.push({ div: pageDiv, viewport: logicalViewport });
         }
     },
 

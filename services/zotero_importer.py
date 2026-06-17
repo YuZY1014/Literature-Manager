@@ -12,11 +12,24 @@ def bake_annotations_into_pdf(pdf_path: str, db_path: str) -> int:
     except Exception:
         return 0
 
-    # Copy DB to avoid lock
-    tmp_db = os.path.join(os.path.dirname(pdf_path), f"_tmp_{uuid.uuid4().hex}.sqlite")
+    # Copy DB (and WAL/SHM) to avoid lock
+    tmp_db = None
     try:
+        tmp_db = os.path.join(os.path.dirname(pdf_path), f"_tmp_{uuid.uuid4().hex}.sqlite")
         shutil.copy2(db_path, tmp_db)
+        for suffix in ("-wal", "-shm"):
+            wal_src = db_path + suffix
+            if os.path.isfile(wal_src):
+                shutil.copy2(wal_src, tmp_db + suffix)
     except Exception:
+        if tmp_db is not None:
+            for suffix in ("", "-wal", "-shm"):
+                f = tmp_db + suffix
+                if os.path.isfile(f):
+                    try:
+                        os.remove(f)
+                    except OSError:
+                        pass
         return 0
 
     conn = sqlite3.connect(tmp_db)
@@ -38,21 +51,35 @@ def bake_annotations_into_pdf(pdf_path: str, db_path: str) -> int:
         att_row = cur.fetchone()
     if not att_row:
         conn.close()
-        os.remove(tmp_db)
+        _cleanup_tmp_db(tmp_db)
         return 0
 
     att_id = att_row["itemID"]
 
+    # Detect schema: Zotero 7 removed isExternal column
+    try:
+        cur.execute("PRAGMA table_info(itemAnnotations)")
+        anno_columns = {row[1] for row in cur.fetchall()}
+    except sqlite3.OperationalError:
+        # itemAnnotations table doesn't exist at all
+        conn.close()
+        _cleanup_tmp_db(tmp_db)
+        return 0
+
+    anno_is_external_clause = ""
+    if "isExternal" in anno_columns:
+        anno_is_external_clause = " AND isExternal = 1"
+
     # Get annotations for this attachment
-    cur.execute("""
+    cur.execute(f"""
         SELECT type, text, comment, color, pageLabel, position
         FROM itemAnnotations
-        WHERE parentItemID = ? AND isExternal = 1
+        WHERE parentItemID = ?{anno_is_external_clause}
         ORDER BY sortIndex
     """, (att_id,))
     annos = cur.fetchall()
     conn.close()
-    os.remove(tmp_db)
+    _cleanup_tmp_db(tmp_db)
 
     if not annos:
         return 0
@@ -133,3 +160,14 @@ def bake_annotations_into_pdf(pdf_path: str, db_path: str) -> int:
     else:
         doc.close()
     return baked
+
+
+def _cleanup_tmp_db(tmp_db: str):
+    """Remove temp DB and its WAL/SHM companions."""
+    for suffix in ("", "-wal", "-shm"):
+        f = tmp_db + suffix
+        if os.path.isfile(f):
+            try:
+                os.remove(f)
+            except OSError:
+                pass

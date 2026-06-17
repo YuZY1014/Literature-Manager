@@ -48,7 +48,8 @@ const ImportUI = {
                 document.getElementById("btnPreview").style.display = "inline-block";
             }
         } catch (e) {
-            document.getElementById("importStatus").innerHTML = `<span style="color:#f59e0b;">${t('import.detectFailed')}</span>`;
+            document.getElementById("importStatus").innerHTML = `<span style="color:#f59e0b;">${t('import.detectFailed')}</span>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${App.esc(e.message)}</div>`;
             document.getElementById("importPathRow").style.display = "block";
             document.getElementById("btnPreview").style.display = "inline-block";
         }
